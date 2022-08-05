@@ -4,6 +4,7 @@ cvss
 django
 django-auth-ldap
 django.contrib.postgres
+django-celery-results
 django-db
 django-extensions
 django-filter
