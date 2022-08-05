@@ -186,6 +186,16 @@ CELERY_BEAT_SCHEDULE = {
         "task": "collectors.jiraffe.tasks.jiraffe_sync",
         "schedule": crontab(minute="*/1"),
     },
+    "email_failed_tasks": {
+        "task": "osidb.tasks.email_failed_tasks",
+        # Every day at 10:45 AM UTC
+        "schedule": crontab(hour=10, minute=45),
+    },
+    "expire_task_results": {
+        "task": "osidb.tasks.expire_task_results",
+        # Every day at 4:30 AM UTC, but it only deletes task results older than 30 days
+        "schedule": crontab(hour=4, minute=30),
+    },
 }
 
 LOGGING = {
