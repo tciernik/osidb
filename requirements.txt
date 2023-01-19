@@ -180,6 +180,7 @@ django==3.2.15 \
     #   django-extensions
     #   django-filter
     #   django-model-utils
+    #   django-multidb-router
     #   django-polymorphic
     #   django-postgres-extra
     #   djangorestframework
@@ -207,6 +208,10 @@ django-filter==21.1 \
 django-model-utils==4.2.0 \
     --hash=sha256:a768a25c80514e0ad4e4a6f9c02c44498985f36c5dfdea47b5b1e8cf994beba6 \
     --hash=sha256:e7a95e102f9c9653427eadab980d5d59e1dea972913b9c9e01ac37f86bba0ddf
+    # via -r requirements.in
+django-multidb-router==0.10 \
+    --hash=sha256:6802bbfce3a0dac343f93a290df12a9979aed99b350bc0148a7430353efae8b6 \
+    --hash=sha256:a10bf4b664465090a5f2e8543dd1491eaf8dde7c551270e546324454e7280964
     # via -r requirements.in
 django-polymorphic==3.0.0 \
     --hash=sha256:73b75eb44ea302bd32820f8661e469509d245ce7f7ff09cd2ad149e5c42034ff \

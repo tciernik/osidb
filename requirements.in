@@ -9,6 +9,7 @@ django-deprecate-fields
 django-extensions
 django-filter
 django-model-utils
+django-multidb-router
 django-polymorphic
 django-postgres-extra
 djangorestframework

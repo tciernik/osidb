@@ -79,8 +79,26 @@ DATABASES = {
             # the database or role level in managed databases such as AWS RDS
             "options": "-c osidb.acl=00000000-0000-0000-0000-000000000000",
         },
-    }
+    },
+    "read-replica-1": {
+        "NAME": get_env("OSIDB_DB_NAME", default="osidb"),
+        "USER": get_env("OSIDB_DB_USER"),
+        "PASSWORD": get_env("OSIDB_DB_PASSWORD"),
+        "HOST": get_env("OSIDB_DB_HOST_RO"),
+        "PORT": get_env("OSIDB_DB_PORT", default="5432"),
+        "ENGINE": "psqlextra.backend",
+        "OPTIONS": {
+            "sslmode": "require",
+            # prevent libpq from automatically trying to connect to the db via GSSAPI
+            "gssencmode": "disable",
+            # this is a hack due to our inability to set a custom parameter either at
+            # the database or role level in managed databases such as AWS RDS
+            "options": "-c osidb.acl=00000000-0000-0000-0000-000000000000",
+        },
+    },
 }
+REPLICA_DATABASES = ("read-replica-1",)
+DATABASE_ROUTERS = ("multidb.ReplicaRouter",)
 
 LOGOUT_REDIRECT_URL = "/"
 LOGIN_REDIRECT_URL = "/"
