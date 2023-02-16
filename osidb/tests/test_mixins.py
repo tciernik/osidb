@@ -1,10 +1,12 @@
 import uuid
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from freezegun import freeze_time
 
 from collectors.bzimport.convertors import FlawBugConvertor
+from osidb.core import generate_acls
 from osidb.exceptions import DataInconsistencyException
 from osidb.models import Flaw
 from osidb.tests.factories import AffectFactory, FlawFactory
@@ -14,21 +16,177 @@ from .test_flaw import tzdatetime
 pytestmark = pytest.mark.unit
 
 
+class TestACLAlertMixin:
+    """
+    negative tests of ACL validations
+    the positive tests are all over the test suite
+    """
+
+    def group2acl(self, group):
+        """
+        translate the human-readable LDAP group
+        name to the corresponding UUID ACL hash
+        """
+        return uuid.UUID(generate_acls([group])[0])
+
+    def create_flaw(self, acl_read=None, acl_write=None, save=True):
+        """
+        shortcut for creating a flaw with the given ACLs
+        """
+        kwargs = {}
+        if acl_read is not None:
+            kwargs["acl_read"] = [self.group2acl(group) for group in acl_read]
+        if acl_write is not None:
+            kwargs["acl_write"] = [self.group2acl(group) for group in acl_write]
+        return FlawFactory(**kwargs) if save else FlawFactory.build(**kwargs)
+
+    def test_empty_acl_read(self):
+        """
+        test that an empty read ACL is not allowed
+        """
+        with pytest.raises(ValidationError) as e:
+            FlawFactory(acl_read=[])
+        assert "'acl_read': ['This field cannot be blank.'" in str(e)
+
+    def test_empty_acl_write(self):
+        """
+        test that an empty write ACL is not allowed
+        """
+        with pytest.raises(ValidationError) as e:
+            FlawFactory(acl_write=[])
+        assert "'acl_write': ['This field cannot be blank.'" in str(e)
+
+    @pytest.mark.parametrize(
+        "acl_read,acl_write",
+        [
+            (["data-prodsec", "unknown-group"], ["data-prodsec-write"]),
+            (["date-topsecret"], ["data-topsecret-write", "unknown-group"]),
+            (
+                ["date-topsecret", "unknown-group"],
+                ["data-topsecret-write", "unknown-group"],
+            ),
+        ],
+    )
+    def test_known_acls(self, acl_read, acl_write):
+        """
+        test that both ACLs contains identical LDAP groups
+        of course with respect to read|write difference
+        """
+        with pytest.raises(ValidationError) as e:
+            flaw = self.create_flaw(acl_read=acl_read, acl_write=acl_write, save=False)
+            flaw._validate_acls_known()
+        assert (
+            "Unknown ACL group given - known are: data-prodsec, data-prodsec-write, data-topsecret, data-topsecret-write"
+            in str(e)
+        )
+
+    @pytest.mark.parametrize(
+        "acl_read",
+        [
+            (["data-prodsec-write"]),
+            (["data-prodsec-write", "data-topsecret-write"]),
+            (["data-prodsec", "data-prodsec-write"]),
+            (["data-topsecret", "data-topsecret-write"]),
+        ],
+    )
+    def test_meaningful_acl_read(self, acl_read):
+        """
+        test that read ACL contains only read LDAP groups
+        """
+        with pytest.raises(ValidationError) as e:
+            flaw = self.create_flaw(acl_read=acl_read, save=False)
+            flaw._validate_acl_meaningful()
+        assert "Read ACL contains non-read ACL group:" in str(e)
+
+    @pytest.mark.parametrize(
+        "acl_write",
+        [
+            (["data-prodsec"]),
+            (["data-prodsec", "data-topsecret"]),
+            (["data-prodsec", "data-prodsec-write"]),
+            (["data-topsecret", "data-topsecret-write"]),
+        ],
+    )
+    def test_meaningful_acl_write(self, acl_write):
+        """
+        test that write ACL contains only read LDAP groups
+        """
+        with pytest.raises(ValidationError) as e:
+            flaw = self.create_flaw(acl_write=acl_write, save=False)
+            flaw._validate_acl_meaningful()
+        assert "Write ACL contains non-write ACL group:" in str(e)
+
+    @pytest.mark.parametrize(
+        "acl_write",
+        [
+            (["data-prodsec-write"]),
+            (["data-prodsec-write", "data-topsecret-write"]),
+        ],
+    )
+    def test_unexpected_embargoed_acl(self, acl_write):
+        """
+        test that embargoed ACL contains only expected LDAP groups
+        which means the embaroed LDAP groups only
+        """
+        with pytest.raises(ValidationError) as e:
+            # the read ACL is given as it defines the embargo
+            self.create_flaw(acl_read=["data-topsecret"], acl_write=acl_write)
+        assert "Unexpected ACL group in embargoed ACLs:" in str(e)
+
+    @pytest.mark.parametrize(
+        "acl_read,acl_write",
+        [
+            (["data-prodsec", "data-topsecret"], ["data-prodsec-write"]),
+            (["data-prodsec"], ["data-prodsec-write", "data-topsecret-write"]),
+        ],
+    )
+    def test_unexpected_non_embargoed_acl(self, acl_read, acl_write):
+        """
+        test that non-embargoed ACL contains only expected LDAP groups
+        which means the public LDAP groups only
+        """
+        with pytest.raises(ValidationError) as e:
+            self.create_flaw(acl_read=acl_read, acl_write=acl_write)
+        assert "Unexpected ACL group in non-embargoed ACLs:" in str(e)
+
+    @pytest.mark.parametrize(
+        "acl_read,acl_write",
+        [
+            (["data-prodsec", "data-prodsec"], ["data-prodsec-write"]),
+            (["data-topsecret"], ["data-topsecret-write", "data-topsecret-write"]),
+        ],
+    )
+    def test_duplicite_acl(self, acl_read, acl_write):
+        """
+        test that non-embargoed ACL contains only expected LDAP groups
+        which means the public LDAP groups only
+        """
+        with pytest.raises(ValidationError) as e:
+            self.create_flaw(acl_read=acl_read, acl_write=acl_write)
+        assert "ACLs must not contain duplicit ACL groups" in str(e)
+
+
 class TestTrackingMixin:
     def create_flaw(self, **kwargs):
         """shortcut to create minimal flaw"""
-        acls = [
+        acl_read = [
             uuid.uuid5(
                 uuid.NAMESPACE_URL,
                 "https://osidb.prod.redhat.com/ns/acls#data-prodsec",
+            )
+        ]
+        acl_write = [
+            uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                "https://osidb.prod.redhat.com/ns/acls#data-prodsec-write",
             )
         ]
         return Flaw(
             title="title",
             cwe_id="CWE-1",
             description="description",
-            acl_read=acls,
-            acl_write=acls,
+            acl_read=acl_read,
+            acl_write=acl_write,
             reported_dt=timezone.now(),
             unembargo_dt=tzdatetime(2000, 1, 1),
             cvss3="3.7/CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N",
