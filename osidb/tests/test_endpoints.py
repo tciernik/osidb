@@ -1135,6 +1135,7 @@ class TestEndpoints(object):
                 "impact": flaw.impact,
                 "source": flaw.source,
                 "embargoed": False,
+                "updated_dt": flaw.updated_dt,
                 "bz_api_key": "SECRET",
             },
             format="json",
@@ -1144,6 +1145,41 @@ class TestEndpoints(object):
         assert original_body["title"] != body["title"]
         assert "appended test title" in body["title"]
         assert original_body["description"] == body["description"]
+
+    def test_flaw_update_collision(self, auth_client, test_api_uri):
+        """
+        test that updating a flaw while sending an outdated updated_dt
+        timestamp is correctly recognized as mid-air collision and rejected
+        """
+        flaw = FlawFactory(embargoed=False)
+        AffectFactory(flaw=flaw)
+
+        response = auth_client.put(
+            f"{test_api_uri}/flaws/{flaw.uuid}",
+            {
+                "uuid": flaw.uuid,
+                "cve_id": flaw.cve_id,
+                "type": flaw.type,
+                "title": f"{flaw.title} appended test title",
+                "description": flaw.description,
+                "state": flaw.state,
+                "resolution": flaw.resolution,
+                "impact": flaw.impact,
+                "source": flaw.source,
+                "embargoed": flaw.embargoed,
+                "updated_dt": flaw.updated_dt - timedelta(days=1),  # outdated timestamp
+                "bz_api_key": "SECRET",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        context = response.context.flatten()
+        assert "exception_value" in context
+        assert context["exception_value"] == (
+            "Received model contains non-refreshed and outdated data! "
+            "It has been probably edited by someone else in the meantime"
+        )
 
     def test_flaw_delete(self, auth_client, test_api_uri):
         """
@@ -1422,6 +1458,7 @@ class TestEndpointsACLs:
                 "title": f"{flaw.title} appended test title",
                 "description": flaw.description,
                 "embargoed": embargoed,
+                "updated_dt": flaw.updated_dt,
                 "bz_api_key": "SECRET",
             },
             format="json",
@@ -1456,6 +1493,7 @@ class TestEndpointsACLs:
                     "title": flaw.title.replace("EMBARGOED", "").strip(),
                     "description": flaw.description,
                     "embargoed": False,
+                    "updated_dt": flaw.updated_dt,
                     "bz_api_key": "SECRET",
                 },
                 format="json",
@@ -1512,6 +1550,7 @@ class TestEndpointsACLs:
                 "title": f"{flaw.title} appended test title",
                 "description": flaw.description,
                 "embargoed": False,
+                "updated_dt": flaw.updated_dt,
                 "bz_api_key": "SECRET",
             },
             format="json",

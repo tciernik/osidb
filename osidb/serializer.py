@@ -5,18 +5,22 @@
 import logging
 import uuid
 from collections import defaultdict
+from datetime import datetime
 from typing import Dict, List, Tuple
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.core.exceptions import BadRequest, ValidationError
+from django.utils.timezone import make_aware
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.bbsync.mixins import BugzillaSyncMixin
 from apps.osim.serializers import WorkflowModelSerializer
 
+from .constants import DATETIME_FMT
 from .core import generate_acls
+from .exceptions import DataInconsistencyException
 from .helpers import ensure_list
 from .mixins import ACLMixin, TrackingMixin
 from .models import (
@@ -215,6 +219,42 @@ class TrackingMixinSerializer(serializers.ModelSerializer):
         model = TrackingMixin
         fields = ["created_dt", "updated_dt"]
         abstract = True
+
+    def update(self, instance, validated_data):
+        """
+        set instance updated timestamp to the one in the request
+        so the TrackingMixin can later perform the comparison
+
+        it is not actually used when saving the instance to DB
+        as that timestamp is being obtained automatically
+        """
+        instance.updated_dt = make_aware(
+            datetime.strptime(
+                self.context["request"].data.get("updated_dt"), DATETIME_FMT
+            )
+        )
+
+        try:
+            return super().update(instance, validated_data)
+        except DataInconsistencyException as e:
+            raise BadRequest(
+                "Received model contains non-refreshed and outdated data! "
+                "It has been probably edited by someone else in the meantime"
+            ) from e
+
+    def validate(self, data):
+        """
+        validate that the updated_dt timestamp was provided
+        because it is used to detect the mid-air collisions
+        """
+        # the updated_dt field is required but read-only
+        # so it is not present as part of the serialized data
+        updated_dt = self.context["request"].data.get("updated_dt")
+        # check that the instance exists so this is an update
+        if self.instance and updated_dt is None:
+            raise ValidationError({"updated_dt": "Field is required"})
+
+        return super().validate(data)
 
 
 class ErratumSerializer(
@@ -462,6 +502,7 @@ class BugzillaSyncMixinSerializer(serializers.ModelSerializer):
         perform the ordinary instance update
         with providing BZ API key while saving
         """
+        instance = super().update(instance, validated_data)
         bz_api_key = validated_data.pop("bz_api_key")
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
