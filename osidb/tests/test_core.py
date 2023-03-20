@@ -30,7 +30,7 @@ class TestCore(object):
         )
         AffectFactory(flaw=flaw1)
         assert flaw1.save() is None
-        assert "test" in flaw1.meta_attr
+        assert "bz_id" in flaw1.meta_attr
 
     def test_flaw_factory_dt(self):
         """
