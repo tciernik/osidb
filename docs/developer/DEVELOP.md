@@ -18,6 +18,11 @@ BZIMPORT_BZ_API_KEY=####################
 JIRAFFE_AUTO_SYNC=True
 JIRA_AUTH_TOKEN=####################
 
+# Enable task management in Jira
+JIRA_TASKMAN_URL="https://foo.bar"
+JIRA_TASKMAN_TOKEN=####################
+JIRA_TASKMAN_PROJECT_KEY=MY_PROJECT_KEY
+
 # Export the default local postgresql password
 OSIDB_DB_PASSWORD=passw0rd
 
@@ -39,6 +44,9 @@ RH_CERT_URL="https://foo.bar"
 # enable Bugzilla backwards sync to propagate writes to Bugzilla
 # otherwise all the writes are performed only locally in OSIDB
 BBSYNC_SYNC_TO_BZ=1
+
+# Enable https proxy (optional)
+HTTPS_PROXY="http://foo.bar"
 ```
 
 The `.env` file is loaded automatically by podman-compose. It is also loaded as environment variables in a few Makefile targets (run `grep -rF '.env ' mk/` to see which ones).
