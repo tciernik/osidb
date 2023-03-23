@@ -15,6 +15,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django_deprecate_fields import deprecate_field
 from polymorphic.models import PolymorphicModel
 from psqlextra.fields import HStoreField
 
@@ -473,16 +474,24 @@ class Flaw(
     )
 
     # flaw state, from BZ status
-    state = models.CharField(
-        choices=FlawState.choices, default=FlawState.NEW, max_length=100
+    state = deprecate_field(
+        models.CharField(
+            choices=FlawState.choices, default=FlawState.NEW, max_length=100
+        ),
+        # required to keep backwards compatibility
+        return_instead="",
     )
 
     # resolution
-    resolution = models.CharField(
-        choices=FlawResolution.choices,
-        default=FlawResolution.NOVALUE,
-        max_length=100,
-        blank=True,
+    resolution = deprecate_field(
+        models.CharField(
+            choices=FlawResolution.choices,
+            default=FlawResolution.NOVALUE,
+            max_length=100,
+            blank=True,
+        ),
+        # required to keep backwards compatibility
+        return_instead="",
     )
 
     # flaw severity, from srtnotes "impact"
