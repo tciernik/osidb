@@ -287,19 +287,6 @@ class FlawHistory(NullStrFieldsMixin, ValidateMixin, ACLMixin):
     # this model is unused so we don't care that it's a CharField with null=True
     pgh_label = models.CharField(max_length=100, null=True)  # noqa: DJ01
 
-    class FlawHistoryState(models.TextChoices):
-        """allowable Bugzilla states"""
-
-        ASSIGNED = "ASSIGNED"
-        CLOSED = "CLOSED"
-        MODIFIED = "MODIFIED"
-        NEW = "NEW"
-        ON_DEV = "ON_DEV"
-        ON_QA = "ON_QA"
-        POST = "POST"
-        RELEASE_PENDING = "RELEASE_PENDING"
-        VERIFIED = "VERIFIED"
-
     class FlawHistoryResolution(models.TextChoices):
         """allowable resolution"""
 
@@ -318,19 +305,6 @@ class FlawHistory(NullStrFieldsMixin, ValidateMixin, ACLMixin):
     # vulnerability or weakness
     type = models.CharField(
         choices=FlawType.choices, default=FlawType.VULNERABILITY, max_length=20
-    )
-
-    # flaw state, from BZ status
-    state = models.CharField(
-        choices=FlawHistoryState.choices, default=FlawHistoryState.NEW, max_length=100
-    )
-
-    # resolution
-    resolution = models.CharField(
-        choices=FlawResolution.choices,
-        default=FlawResolution.NOVALUE,
-        max_length=100,
-        blank=True,
     )
 
     # flaw severity, from srtnotes "impact"
