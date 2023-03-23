@@ -2333,9 +2333,11 @@ components:
         state:
           type: string
           readOnly: true
+          deprecated: true
         resolution:
           type: string
           readOnly: true
+          deprecated: true
         impact:
           oneOf:
           - $ref: '#/components/schemas/ImpactEnum'
