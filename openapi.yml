@@ -1115,25 +1115,6 @@ paths:
           type: string
           format: date-time
       - in: query
-        name: resolution
-        schema:
-          type: string
-          enum:
-          - ''
-          - CANTFIX
-          - CURRENTRELEASE
-          - DEFERRED
-          - DUPLICATE
-          - EOL
-          - ERRATA
-          - INSUFFICIENT_DATA
-          - NEXTRELEASE
-          - NOTABUG
-          - RAWHIDE
-          - UPSTREAM
-          - WONTFIX
-          - WORKSFORME
-      - in: query
         name: search
         schema:
           type: string
@@ -1229,20 +1210,6 @@ paths:
           - XCHAT
           - XEN
           - XPDF
-      - in: query
-        name: state
-        schema:
-          type: string
-          enum:
-          - ASSIGNED
-          - CLOSED
-          - MODIFIED
-          - NEW
-          - ON_DEV
-          - ON_QA
-          - POST
-          - RELEASE_PENDING
-          - VERIFIED
       - in: query
         name: statement
         schema:
